@@ -1,0 +1,8 @@
+
+{
+  "name": "Gemini Spotify Clone Ultra",
+  "description": "Real-time Apple Music integration with Gemini AI DJ insights and Firebase Auth.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
