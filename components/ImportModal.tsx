@@ -18,19 +18,66 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
 
   React.useEffect(() => {
-    if (file && window.jsmediatags) {
+    if (!file) return;
+
+    // Dosya adından basit bir çıkarım yap (Örn: "Sanatçı - Şarkı Adı.mp3")
+    const baseName = file.name.replace(/\.[^/.]+$/, '');
+    let inferredTitle = baseName;
+    let inferredArtist = '';
+
+    if (baseName.includes(' - ')) {
+      const parts = baseName.split(' - ');
+      inferredArtist = parts[0].trim();
+      inferredTitle = parts.slice(1).join(' - ').trim() || inferredTitle;
+    }
+
+    // Önce dosya adından otomatik doldur
+    setTitle((prev) => prev || inferredTitle);
+    setArtist((prev) => prev || inferredArtist);
+
+    // Eğer jsmediatags yüklüyse, ID3 taglerinden daha doğru bilgiyi çek
+    if (window.jsmediatags) {
       window.jsmediatags.read(file, {
         onSuccess: (tag: any) => {
-          setTitle(tag.tags.title || '');
-          setArtist(tag.tags.artist || '');
+          const tagTitle = tag.tags.title;
+          const tagArtist = tag.tags.artist;
+
+          setTitle((prev) => tagTitle || prev || inferredTitle);
+          setArtist((prev) => tagArtist || prev || inferredArtist || 'Bilinmeyen Sanatçı');
         },
         onError: (error: any) => {
           console.error('Error reading media tags:', error);
+          // Tag okunamazsa, en azından bir sanatçı adı olsun
+          setArtist((prev) => prev || inferredArtist || 'Bilinmeyen Sanatçı');
         },
       });
+    } else {
+      // jsmediatags henüz yüklenmemişse bile en azından dosya adından doldur
+      if (!inferredArtist) {
+        setArtist((prev) => prev || 'Bilinmeyen Sanatçı');
+      }
     }
+  }, [file]);
+
+  React.useEffect(() => {
+    if (!file) return;
+
+    const audio = new Audio();
+    const objectUrl = URL.createObjectURL(file);
+    audio.src = objectUrl;
+    audio.addEventListener('loadedmetadata', () => {
+      if (!isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(Math.floor(audio.duration));
+      }
+      URL.revokeObjectURL(objectUrl);
+    });
+
+    return () => {
+      audio.removeAttribute('src');
+    };
   }, [file]);
 
 
@@ -46,7 +93,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
       album: 'Lokal Dosya',
       coverUrl: 'https://picsum.photos/seed/' + Math.random() + '/300/300',
       audioUrl,
-      duration: 180, // Default duration, real apps would read this from metadata
+      duration: duration ?? 180,
     };
 
     onImport(newTrack);

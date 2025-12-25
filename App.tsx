@@ -13,6 +13,13 @@ import { searchMusic, getTrendingMusic } from './services/musicService';
 import { auth } from './lib/firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
+const formatDuration = (seconds: number) => {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -25,9 +32,22 @@ const App: React.FC = () => {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set());
+  const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
+
+  const isTrackLiked = (track: Track | null) =>
+    !!track && likedTracks.some((t) => t.id === track.id);
+
+  const toggleLike = (track: Track) => {
+    setLikedTracks((prev) => {
+      const exists = prev.some((t) => t.id === track.id);
+      if (exists) {
+        return prev.filter((t) => t.id !== track.id);
+      }
+      return [...prev, track];
+    });
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -161,7 +181,11 @@ const App: React.FC = () => {
                   <h2 className="text-xl font-bold mb-4">Günün Popüler Şarkıları</h2>
                   <div className="bg-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
                     {tracks.slice(0, 10).map((t, i) => (
-                      <div key={t.id} onClick={() => handleTrackSelect(t)} className="flex items-center justify-between p-3 hover:bg-white/10 cursor-pointer group transition-colors">
+                      <div
+                        key={t.id}
+                        onClick={() => handleTrackSelect(t)}
+                        className="flex items-center justify-between p-3 hover:bg-white/10 cursor-pointer group transition-colors"
+                      >
                         <div className="flex items-center gap-3 overflow-hidden">
                           <span className="w-4 text-xs text-[#b3b3b3]">{i + 1}</span>
                           <img src={t.coverUrl} className="w-10 h-10 rounded" alt="" />
@@ -170,7 +194,20 @@ const App: React.FC = () => {
                             <p className="text-xs text-[#b3b3b3] truncate">{t.artist}</p>
                           </div>
                         </div>
-                        <PlayIcon className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLike(t);
+                            }}
+                            className={isTrackLiked(t) ? 'text-[#1DB954]' : 'text-[#b3b3b3] hover:text-white'}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                            </svg>
+                          </button>
+                          <PlayIcon className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -181,12 +218,27 @@ const App: React.FC = () => {
             {currentView === 'search' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {tracks.map(t => (
-                  <div key={t.id} onClick={() => handleTrackSelect(t)} className="bg-[#181818] hover:bg-[#282828] p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all border border-transparent hover:border-white/10">
+                  <div
+                    key={t.id}
+                    onClick={() => handleTrackSelect(t)}
+                    className="bg-[#181818] hover:bg-[#282828] p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all border border-transparent hover:border-white/10"
+                  >
                     <img src={t.coverUrl} className="w-14 h-14 rounded shadow-md object-cover" alt="" />
                     <div className="flex-1 min-w-0">
                       <p className={`font-bold truncate text-sm ${currentTrack?.id === t.id ? 'text-[#1DB954]' : 'text-white'}`}>{t.title}</p>
                       <p className="text-xs text-[#b3b3b3] truncate">{t.artist}</p>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLike(t);
+                      }}
+                      className={isTrackLiked(t) ? 'text-[#1DB954]' : 'text-[#b3b3b3] hover:text-white'}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -212,15 +264,30 @@ const App: React.FC = () => {
                         <tr key={t.id} onClick={() => handleTrackSelect(t)} className="hover:bg-white/10 cursor-pointer group">
                           <td className="p-4 text-xs text-[#b3b3b3]">{i + 1}</td>
                           <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <img src={t.coverUrl} className="w-10 h-10 rounded" alt="" />
-                              <div className="min-w-0">
-                                <p className={`font-bold truncate text-sm ${currentTrack?.id === t.id ? 'text-[#1DB954]' : 'text-white'}`}>{t.title}</p>
-                                <p className="text-xs text-[#b3b3b3] truncate">{t.artist}</p>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <img src={t.coverUrl} className="w-10 h-10 rounded" alt="" />
+                                <div className="min-w-0">
+                                  <p className={`font-bold truncate text-sm ${currentTrack?.id === t.id ? 'text-[#1DB954]' : 'text-white'}`}>{t.title}</p>
+                                  <p className="text-xs text-[#b3b3b3] truncate">{t.artist}</p>
+                                </div>
                               </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleLike(t);
+                                }}
+                                className={isTrackLiked(t) ? 'text-[#1DB954]' : 'text-[#b3b3b3] hover:text-white'}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                </svg>
+                              </button>
                             </div>
                           </td>
-                          <td className="p-4 text-right pr-8 text-xs text-[#b3b3b3]">0:30</td>
+                          <td className="p-4 text-right pr-8 text-xs text-[#b3b3b3]">
+                            {t.album === 'Lokal Dosya' ? formatDuration(t.duration) : '0:30'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -250,6 +317,30 @@ const App: React.FC = () => {
                   <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-[#1DB954] transition-colors"><PlayIcon className="text-white group-hover:text-black w-6 h-6 rotate-90" /></div>
                   <span className="text-xs font-bold">Müzik Ekle</span>
                 </button>
+                {likedTracks.length > 0 && (
+                  <div
+                    onClick={() => {
+                      const likedPlaylist: Playlist = {
+                        id: 'liked-tracks',
+                        name: 'Beğendiğim Şarkılar',
+                        description: 'Kalbinin işaretlediği tüm şarkılar.',
+                        coverUrl: likedTracks[0]?.coverUrl,
+                        tracks: likedTracks,
+                      };
+                      setSelectedPlaylist(likedPlaylist);
+                      setCurrentView('playlist');
+                    }}
+                    className="bg-[#181818] p-3 rounded-lg cursor-pointer hover:bg-[#282828] transition-all border border-transparent hover:border-[#1DB954] flex flex-col gap-2"
+                  >
+                    <div className="w-full aspect-square rounded mb-2 bg-gradient-to-br from-[#1DB954] to-purple-600 flex items-center justify-center">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    </div>
+                    <p className="font-bold text-sm truncate">Beğendiğim Şarkılar</p>
+                    <p className="text-xs text-[#b3b3b3] truncate">{likedTracks.length} şarkı</p>
+                  </div>
+                )}
                 {FEATURED_PLAYLISTS.map(p => (
                   <div key={p.id} onClick={() => { setSelectedPlaylist(p); setCurrentView('playlist'); }} className="bg-[#181818] p-3 rounded-lg cursor-pointer">
                     <img src={p.coverUrl} className="w-full aspect-square rounded mb-2" alt="" />
@@ -290,6 +381,8 @@ const App: React.FC = () => {
         setIsExpanded={setIsPlayerExpanded}
         aiAnalysis={aiAnalysis}
         isLoadingAnalysis={isLoadingAnalysis}
+        isLiked={isTrackLiked(currentTrack)}
+        onToggleLike={() => currentTrack && toggleLike(currentTrack)}
       />
 
       {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={(t) => { setTracks([t, ...tracks]); setCurrentTrack(t); setIsPlaying(true); }} />}

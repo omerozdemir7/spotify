@@ -13,11 +13,13 @@ interface PlayerProps {
   setIsExpanded: (val: boolean) => void;
   aiAnalysis: string;
   isLoadingAnalysis: boolean;
+  isLiked: boolean;
+  onToggleLike: () => void;
 }
 
 const Player: React.FC<PlayerProps> = ({ 
   currentTrack, isPlaying, setIsPlaying, onNext, onPrevious, 
-  isExpanded, setIsExpanded, aiAnalysis, isLoadingAnalysis 
+  isExpanded, setIsExpanded, aiAnalysis, isLoadingAnalysis, isLiked, onToggleLike 
 }) => {
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -70,6 +72,8 @@ const Player: React.FC<PlayerProps> = ({
 
   if (!currentTrack) return null;
 
+  const isLocalTrack = currentTrack.album === 'Lokal Dosya';
+
   return (
     <>
       {/* Expanded Mobile View */}
@@ -90,7 +94,14 @@ const Player: React.FC<PlayerProps> = ({
                   <h2 className="text-2xl font-bold">{currentTrack.title}</h2>
                   <p className="text-[#b3b3b3]">{currentTrack.artist}</p>
                 </div>
-                <button className="text-[#1DB954]"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+                <button
+                  onClick={onToggleLike}
+                  className={isLiked ? 'text-[#1DB954]' : 'text-white/60'}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                </button>
               </div>
 
               {/* Progress Bar */}
@@ -100,7 +111,7 @@ const Player: React.FC<PlayerProps> = ({
                 </div>
                 <div className="flex justify-between text-[10px] text-[#b3b3b3] font-bold">
                   <span>{formatTime(currentTime)}</span>
-                  <span>0:30 (Önizleme)</span>
+                  <span>{isLocalTrack ? formatTime(currentTrack.duration) : '0:30 (Önizleme)'}</span>
                 </div>
               </div>
 
@@ -162,7 +173,9 @@ const Player: React.FC<PlayerProps> = ({
             <div className="relative flex-1 group h-1 bg-[#4d4d4d] rounded-full overflow-hidden">
               <div className="absolute inset-y-0 left-0 bg-[#1DB954]" style={{ width: `${progress}%` }}></div>
             </div>
-            <span className="text-[10px] text-[#b3b3b3] min-w-[32px]">0:30</span>
+            <span className="text-[10px] text-[#b3b3b3] min-w-[32px]">
+              {isLocalTrack ? formatTime(currentTrack.duration) : '0:30'}
+            </span>
           </div>
         </div>
 
